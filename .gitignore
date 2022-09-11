@@ -1,0 +1,7 @@
+
+*.exe
+*.ilk
+*.pdb
+*.obj
+*.exp
+*.dll
