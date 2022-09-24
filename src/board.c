@@ -198,7 +198,7 @@ static bb_t board_valid_moves(Board *board, bb_t loc, int piece, int color) {
         bb_t spot_5 = loc_clip_h << 1;
         bb_t spot_6 = loc_clip_a >> 9;
         bb_t spot_7 = loc        >> 8;
-        bb_t spot_8 = loc_clip_h >> 9;
+        bb_t spot_8 = loc_clip_h >> 7;
         // Find the mask for all the king moves
         bb_t all_moves = spot_1 | spot_2 | spot_3 | spot_4
                        | spot_5 | spot_6 | spot_7 | spot_8;
