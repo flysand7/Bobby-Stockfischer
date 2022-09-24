@@ -1,7 +1,8 @@
 
 enum PieceColor {
-    PIECE_BLACK,
-    PIECE_WHITE,
+    COLOR_BLACK,
+    COLOR_WHITE,
+    COLOR_CNT,
 } typedef PieceColor;
 
 enum PieceKind {
@@ -11,6 +12,7 @@ enum PieceKind {
     PIECE_R,
     PIECE_Q,
     PIECE_K,
+    PIECE_CNT,
 } typedef PieceKind;
 
 static char piece_char_from_kind(PieceKind piece) {
