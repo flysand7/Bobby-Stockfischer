@@ -31,6 +31,7 @@ static bool str_starts_with(char *str, char *pref, char **rest) {
 }
 
 int main() {
+    bb_rays_init();
     Board b;
     board_default(&b);
     char line_buf[1024];

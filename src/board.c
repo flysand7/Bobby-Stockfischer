@@ -97,12 +97,75 @@ const bb_t black_king    = 0x1000000000000000;
 #define SQ_F7 (FILE_F & RANK_7)
 #define SQ_F8 (FILE_F & RANK_8)
 
+enum {
+    // "Positive" directions
+    DIR_U,
+    DIR_R,
+    DIR_UL,
+    DIR_UR,
+    // "Negative" directions
+    DIR_L,
+    DIR_D,
+    DIR_DL,
+    DIR_DR,
+
+    DIR_CNT,
+} typedef Direction;
+
+bb_t ray_attack_lut[64][DIR_CNT];
+
+static void bb_rays_init() {
+    for(int sq = 0; sq != 64; ++sq) {
+        // up & down
+        bb_t base = UINT64_C(1) << sq;
+        bb_t up = base << 8;
+        up |= up << 8;
+        up |= up << 16;
+        up |= up << 32;
+        bb_t down = base >> 8;
+        down |= down >> 8;
+        down |= down >> 16;
+        down |= down >> 32;
+        // left and right
+        bb_t left  = ((base & ~FILE_A) >> 1);
+        left |= (left >> 1) & ~FILE_H;
+        left |= (left >> 2) & ~(FILE_G|FILE_H);
+        left |= (left >> 4) & ~(FILE_E|FILE_F|FILE_G|FILE_H);
+        bb_t right = ((base & ~FILE_H) << 1);
+        right |= (right << 1) & ~FILE_A;
+        right |= (right << 2) & ~(FILE_A|FILE_B);
+        right |= (right << 4) & ~(FILE_A|FILE_B|FILE_C|FILE_D);
+        // diagonals
+        bb_t ul = base << 7;
+        bb_t ur = base << 9;
+        bb_t dl = base >> 9;
+        bb_t dr = base >> 7;
+        for(int i = 0; i != 7; ++i) {
+            ul |= (ul & ~FILE_A) << 7;
+            ur |= (ur & ~FILE_H) << 9;
+            dl |= (dl & ~FILE_A) >> 9;
+            dr |= (dr & ~FILE_H) >> 7;
+        }
+        ray_attack_lut[sq][DIR_U] = up;
+        ray_attack_lut[sq][DIR_D] = down;
+        ray_attack_lut[sq][DIR_L] = left;
+        ray_attack_lut[sq][DIR_R] = right;
+        ray_attack_lut[sq][DIR_UL] = ul;
+        ray_attack_lut[sq][DIR_UR] = ur;
+        ray_attack_lut[sq][DIR_DL] = dl;
+        ray_attack_lut[sq][DIR_DR] = dr;
+    }
+}
+
 static int bb_first_bit(bb_t bb) {
-    return (int)_mm_tzcnt_64(bb);
+    return (int)_tzcnt_u64(bb);;
 }
 
 static int bb_last_bit(bb_t bb) {
-    return (int)__lzcnt64(bb);
+    unsigned long res;
+    _BitScanReverse64(&res, bb);
+    return res;
+;
 }
 
 static void board_default(Board *board) {
@@ -179,6 +242,27 @@ static bb_t board_all_pieces(Board *board) {
     bb_t white_pieces = board_pieces(board, COLOR_WHITE);
     bb_t black_pieces = board_pieces(board, COLOR_BLACK);
     return white_pieces | black_pieces;
+}
+
+static bb_t bb_ray_moves(bb_t pieces, int loc_sq, int dir) {
+    bb_t attacks = ray_attack_lut[loc_sq][dir];
+    bb_t blockers = attacks & pieces;
+    unsigned long block_sq;
+    switch(dir) {
+        case DIR_R:
+        case DIR_U:
+        case DIR_UR:
+        case DIR_UL:
+            _BitScanForward64(&block_sq, blockers | UINT64_C(0x8000000000000000));
+            break;
+        case DIR_L:
+        case DIR_D:
+        case DIR_DL:
+        case DIR_DR:
+            _BitScanReverse64(&block_sq, blockers | 1);
+            break;
+    }
+    return attacks ^ ray_attack_lut[block_sq][dir];
 }
 
 static bb_t board_valid_moves(Board *board, bb_t loc, int piece, int color) {
@@ -269,6 +353,49 @@ static bb_t board_valid_moves(Board *board, bb_t loc, int piece, int color) {
             bb_t valid_attacks = (atk_l | atk_r) & white_pieces;
             return valid_moves | valid_attacks;
         }
+    }
+    else if(piece == PIECE_R) {
+        bb_t ally_pieces = board_pieces(board, color);
+        bb_t enemy_pieces = board_pieces(board, 1-color);
+        bb_t all_pieces = ally_pieces | enemy_pieces;
+        unsigned long loc_sq = bb_first_bit(loc);
+        bb_t all_moves = 0;
+        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_R);
+        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_U);
+        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_L);
+        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_D);
+        bb_t valid_moves = all_moves & ~ally_pieces;
+        return valid_moves;
+    }
+    else if(piece == PIECE_B) {
+        bb_t ally_pieces = board_pieces(board, color);
+        bb_t enemy_pieces = board_pieces(board, 1-color);
+        bb_t all_pieces = ally_pieces | enemy_pieces;
+        unsigned long loc_sq = bb_first_bit(loc);
+        bb_t all_moves = 0;
+        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_UL);
+        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_UR);
+        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_DL);
+        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_DR);
+        bb_t valid_moves = all_moves & ~ally_pieces;
+        return valid_moves;
+    }
+    else if(piece == PIECE_Q) {
+        bb_t ally_pieces = board_pieces(board, color);
+        bb_t enemy_pieces = board_pieces(board, 1-color);
+        bb_t all_pieces = ally_pieces | enemy_pieces;
+        unsigned long loc_sq = bb_first_bit(loc);
+        bb_t all_moves = 0;
+        // all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_R);
+        all_moves = bb_ray_moves(all_pieces, loc_sq, DIR_U);
+        // all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_L);
+        // all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_D);
+        // all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_UL);
+        // all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_UR);
+        // all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_DL);
+        // all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_DR);
+        bb_t valid_moves = all_moves & ~ally_pieces;
+        return valid_moves;
     }
     return 0;
 }
