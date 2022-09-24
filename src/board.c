@@ -126,6 +126,27 @@ static void board_default(Board *board) {
     board->move_counter = 0;
 }
 
+static void board_empty(Board *board) {
+    board->pieces[COLOR_WHITE][PIECE_P] = 0;
+    board->pieces[COLOR_WHITE][PIECE_N] = 0;
+    board->pieces[COLOR_WHITE][PIECE_B] = 0;
+    board->pieces[COLOR_WHITE][PIECE_R] = 0;
+    board->pieces[COLOR_WHITE][PIECE_Q] = 0;
+    board->pieces[COLOR_WHITE][PIECE_K] = 0;
+    board->pieces[COLOR_BLACK][PIECE_P] = 0;
+    board->pieces[COLOR_BLACK][PIECE_N] = 0;
+    board->pieces[COLOR_BLACK][PIECE_B] = 0;
+    board->pieces[COLOR_BLACK][PIECE_R] = 0;
+    board->pieces[COLOR_BLACK][PIECE_Q] = 0;
+    board->pieces[COLOR_BLACK][PIECE_K] = 0;
+    board->castling[COLOR_WHITE][CASTLE_SHORT] = true;
+    board->castling[COLOR_WHITE][CASTLE_LONG]  = true;
+    board->castling[COLOR_BLACK][CASTLE_SHORT] = true;
+    board->castling[COLOR_BLACK][CASTLE_LONG]  = true;
+    board->ep_target = false;
+    board->move_counter = 0;
+}
+
 static int board_piece_at(Board *board, int file, int rank, int *out_color) {
     int i = 8*rank + file;
     // this can be made branchless
@@ -139,6 +160,11 @@ static int board_piece_at(Board *board, int file, int rank, int *out_color) {
     }
     *out_color = -1;
     return -1;
+}
+
+static void board_put_at(Board *board, int file, int rank, int piece, int color) {
+    int i = 8*rank + file;
+    board->pieces[color][piece] |= (UINT64_C(1) << i);
 }
 
 static bb_t board_pieces(Board *board, int color) {
