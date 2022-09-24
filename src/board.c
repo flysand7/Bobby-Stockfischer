@@ -386,14 +386,14 @@ static bb_t board_valid_moves(Board *board, bb_t loc, int piece, int color) {
         bb_t all_pieces = ally_pieces | enemy_pieces;
         unsigned long loc_sq = bb_first_bit(loc);
         bb_t all_moves = 0;
-        // all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_R);
-        all_moves = bb_ray_moves(all_pieces, loc_sq, DIR_U);
-        // all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_L);
-        // all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_D);
-        // all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_UL);
-        // all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_UR);
-        // all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_DL);
-        // all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_DR);
+        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_R);
+        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_U);
+        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_L);
+        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_D);
+        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_UL);
+        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_UR);
+        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_DL);
+        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_DR);
         bb_t valid_moves = all_moves & ~ally_pieces;
         return valid_moves;
     }
