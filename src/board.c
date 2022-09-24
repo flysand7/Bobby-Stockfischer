@@ -220,7 +220,7 @@ static bb_t board_valid_moves(Board *board, bb_t loc, int piece, int color) {
             bb_t step1 = (loc << 8);
             // For one-square steps from rank 2 (that end up at rank 3) we
             // compute two-square steps
-            bb_t step2 = (step1 & RANK_3);
+            bb_t step2 = (step1 & RANK_3) << 8;
             bb_t valid_moves = (step1 | step2) & ~all_pieces;
             // Now compute valid captures
             bb_t atk_l = (loc & ~FILE_A) << 7;
