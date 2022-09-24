@@ -126,6 +126,21 @@ static void board_default(Board *board) {
     board->move_counter = 0;
 }
 
+static int board_piece_at(Board *board, int file, int rank, int *out_color) {
+    int i = 8*rank + file;
+    // this can be made branchless
+    for(int piece = 0; piece != PIECE_CNT; ++piece) {
+        for(int color = 0; color != COLOR_CNT; ++color) {
+            if(board->pieces[color][piece] & (UINT64_C(1) << i)) {
+                *out_color = color;
+                return piece;
+            }
+        }
+    }
+    *out_color = -1;
+    return -1;
+}
+
 static bb_t board_pieces(Board *board, int color) {
     bb_t result = 0;
     for(int piece = 0; piece != PIECE_CNT; ++piece) {
@@ -140,7 +155,7 @@ static bb_t board_all_pieces(Board *board) {
     return white_pieces | black_pieces;
 }
 
-static bb_t valid_moves(Board *board, bb_t loc, int piece, int color) {
+static bb_t board_valid_moves(Board *board, bb_t loc, int piece, int color) {
     if(piece == PIECE_K) {
         // The spots for king go like this:
         //  1 2 3

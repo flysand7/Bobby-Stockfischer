@@ -22,6 +22,19 @@ static char piece_char_from_kind(PieceKind piece) {
         case PIECE_R: return 'R';
         case PIECE_Q: return 'Q';
         case PIECE_K: return 'K';
+        case PIECE_P: return 'P';
+        default:      return 0;
+    }
+}
+
+static char piece_char_from_kind_lower(PieceKind piece) {
+    switch(piece) {
+        case PIECE_N: return 'n';
+        case PIECE_B: return 'b';
+        case PIECE_R: return 'r';
+        case PIECE_Q: return 'q';
+        case PIECE_K: return 'k';
+        case PIECE_P: return 'p';
         default:      return 0;
     }
 }
@@ -33,6 +46,20 @@ static PieceKind piece_kind_from_char(char pn) {
         case 'R': return PIECE_R;
         case 'Q': return PIECE_Q;
         case 'K': return PIECE_K;
-        default:  return 0;
+        case 'P': return PIECE_P;
+        default:      return 0;
     }
 }
+
+static PieceKind piece_kind_from_char_lower(char pn) {
+    switch(pn) {
+        case 'n': return PIECE_N;
+        case 'b': return PIECE_B;
+        case 'r': return PIECE_R;
+        case 'q': return PIECE_Q;
+        case 'k': return PIECE_K;
+        case 'p': return PIECE_P;
+        default:      return 0;
+    }
+}
+
