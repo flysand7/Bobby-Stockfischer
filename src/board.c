@@ -265,137 +265,152 @@ static bb_t bb_ray_moves(bb_t pieces, int loc_sq, int dir) {
     return attacks ^ ray_attack_lut[block_sq][dir];
 }
 
+static bb_t board_attacks_k(Board *board, bb_t loc) {
+    // The spots for king go like this:
+    //  1 2 3
+    //  4 K 5
+    //  6 7 8
+    // for going left and right we exclude locations of king
+    // that are on files A and H
+    bb_t loc_clip_a = loc & ~FILE_A;
+    bb_t loc_clip_h = loc & ~FILE_H;
+    bb_t spot_1 = loc_clip_a << 7;
+    bb_t spot_2 = loc        << 8;
+    bb_t spot_3 = loc_clip_h << 9;
+    bb_t spot_4 = loc_clip_a >> 1;
+    bb_t spot_5 = loc_clip_h << 1;
+    bb_t spot_6 = loc_clip_a >> 9;
+    bb_t spot_7 = loc        >> 8;
+    bb_t spot_8 = loc_clip_h >> 7;
+    // Find the mask for all the king moves
+    bb_t atks = spot_1 | spot_2 | spot_3 | spot_4
+              | spot_5 | spot_6 | spot_7 | spot_8;
+    return atks;
+}
+
+static bb_t board_attacks_n(Board *board, bb_t loc) {
+    // The spots for the knight go like this:
+    // . 1 . 2 .
+    // 3 . . . 4
+    // . . N . .
+    // 5 . . . 6
+    // . 7 . 8 .
+    // For the spots 1,7 knight can't be on A file
+    // For the spots 2,8 knight can't be on H file
+    // For the spots 3,5 knight can't be on A and B files
+    // For the spots 4,6 knight can't be on G and H files
+    bb_t loc_clip_a  = loc & ~FILE_A;
+    bb_t loc_clip_h  = loc & ~FILE_H;
+    bb_t loc_clip_ab = loc & ~(FILE_A | FILE_B);
+    bb_t loc_clip_gh = loc & ~(FILE_G | FILE_H);
+    // Find attack spots
+    bb_t spot_1 = loc_clip_a  << 15;
+    bb_t spot_2 = loc_clip_h  << 17;
+    bb_t spot_3 = loc_clip_ab << 6;
+    bb_t spot_4 = loc_clip_gh << 10;
+    bb_t spot_5 = loc_clip_ab >> 10;
+    bb_t spot_6 = loc_clip_gh >> 6;
+    bb_t spot_7 = loc_clip_a  >> 17;
+    bb_t spot_8 = loc_clip_h  >> 15;
+    // Find all moves theorhetically possible by knight
+    bb_t atks = spot_1 | spot_2 | spot_3 | spot_4
+              | spot_5 | spot_6 | spot_7 | spot_8;
+    return atks;
+}
+
+static bb_t board_attacks_p(Board *board, bb_t loc, int color) {
+    // TODO: this code doesn't handle en passant
+    if(color == COLOR_WHITE) {
+        bb_t black_pieces = board_pieces(board, COLOR_BLACK);
+        bb_t atk_l = (loc & ~FILE_A) << 7;
+        bb_t atk_r = (loc & ~FILE_H) << 9;
+        bb_t valid_attacks = (atk_l | atk_r) & black_pieces;
+        return valid_attacks;
+    }
+    else {
+        bb_t white_pieces = board_pieces(board, COLOR_WHITE);
+        bb_t atk_l = (loc & ~FILE_A) >> 9;
+        bb_t atk_r = (loc & ~FILE_H) >> 7;
+        bb_t valid_attacks = (atk_l | atk_r) & white_pieces;
+        return valid_attacks;
+    }
+}
+
+static bb_t board_moves_p(Board *board, bb_t loc, int color) {
+    if(color == COLOR_WHITE) {
+        // One step above move
+        bb_t step1 = (loc << 8);
+        // If the pawn came from rank 2, we add double-step to move list
+        bb_t step2 = (loc & RANK_2) << 16;
+        bb_t all_pieces = board_all_pieces(board);
+        bb_t valid_moves = (step1 | step2) & ~all_pieces;
+        return valid_moves;
+    }
+    else {
+        // One step above move
+        bb_t step1 = (loc >> 8);
+        // If the pawn came from rank 2, we add double-step to move list
+        bb_t step2 = (loc & RANK_2) >> 16;
+        bb_t all_pieces = board_all_pieces(board);
+        bb_t valid_moves = (step1 | step2) & ~all_pieces;
+        return valid_moves;
+    }
+}
+
+static bb_t board_attacks_r(Board *board, bb_t loc) {
+    bb_t all_pieces = board_all_pieces(board);
+    unsigned long loc_sq = bb_first_bit(loc);
+    bb_t moves = 0;
+    moves |= bb_ray_moves(all_pieces, loc_sq, DIR_R);
+    moves |= bb_ray_moves(all_pieces, loc_sq, DIR_U);
+    moves |= bb_ray_moves(all_pieces, loc_sq, DIR_L);
+    moves |= bb_ray_moves(all_pieces, loc_sq, DIR_D);
+    return moves;
+}
+
+static bb_t board_attacks_b(Board *board, bb_t loc) {
+    bb_t all_pieces = board_all_pieces(board);
+    unsigned long loc_sq = bb_first_bit(loc);
+    bb_t moves = 0;
+    moves |= bb_ray_moves(all_pieces, loc_sq, DIR_UL);
+    moves |= bb_ray_moves(all_pieces, loc_sq, DIR_UR);
+    moves |= bb_ray_moves(all_pieces, loc_sq, DIR_DL);
+    moves |= bb_ray_moves(all_pieces, loc_sq, DIR_DR);
+    return moves;
+}
+
 static bb_t board_valid_moves(Board *board, bb_t loc, int piece, int color) {
     if(piece == PIECE_K) {
-        // The spots for king go like this:
-        //  1 2 3
-        //  4 K 5
-        //  6 7 8
-        // for going left and right we exclude locations of king
-        // that are on files A and H
-        bb_t loc_clip_a = loc & ~FILE_A;
-        bb_t loc_clip_h = loc & ~FILE_H;
-        bb_t spot_1 = loc_clip_a << 7;
-        bb_t spot_2 = loc        << 8;
-        bb_t spot_3 = loc_clip_h << 9;
-        bb_t spot_4 = loc_clip_a >> 1;
-        bb_t spot_5 = loc_clip_h << 1;
-        bb_t spot_6 = loc_clip_a >> 9;
-        bb_t spot_7 = loc        >> 8;
-        bb_t spot_8 = loc_clip_h >> 7;
-        // Find the mask for all the king moves
-        bb_t all_moves = spot_1 | spot_2 | spot_3 | spot_4
-                       | spot_5 | spot_6 | spot_7 | spot_8;
-        // No self capture
-        bb_t valid_moves = all_moves & ~board_pieces(board, color);
-        return valid_moves;
+        bb_t attacks = board_attacks_k(board, loc);
+        bb_t ally_pieces = board_pieces(board, color);
+        return attacks & ~ally_pieces;
     }
     else if(piece == PIECE_N) {
-        // The spots for the knight go like this:
-        // . 1 . 2 .
-        // 3 . . . 4
-        // . . N . .
-        // 5 . . . 6
-        // . 7 . 8 .
-        // For the spots 1,7 knight can't be on A file
-        // For the spots 2,8 knight can't be on H file
-        // For the spots 3,5 knight can't be on A and B files
-        // For the spots 4,6 knight can't be on G and H files
-        bb_t loc_clip_a  = loc & ~FILE_A;
-        bb_t loc_clip_h  = loc & ~FILE_H;
-        bb_t loc_clip_ab = loc & ~(FILE_A | FILE_B);
-        bb_t loc_clip_gh = loc & ~(FILE_G | FILE_H);
-        // Compute spots
-        bb_t spot_1 = loc_clip_a  << 15;
-        bb_t spot_2 = loc_clip_h  << 17;
-        bb_t spot_3 = loc_clip_ab << 6;
-        bb_t spot_4 = loc_clip_gh << 10;
-        bb_t spot_5 = loc_clip_ab >> 10;
-        bb_t spot_6 = loc_clip_gh >> 6;
-        bb_t spot_7 = loc_clip_a  >> 17;
-        bb_t spot_8 = loc_clip_h  >> 15;
-        // Find all moves theorhetically possible by knight
-        bb_t all_moves = spot_1 | spot_2 | spot_3 | spot_4
-                       | spot_5 | spot_6 | spot_7 | spot_8;
-        // No self capture
-        bb_t valid_moves = all_moves & ~board_pieces(board, color);
-        return valid_moves;
+        bb_t attacks = board_attacks_n(board, loc);
+        bb_t ally_pieces = board_pieces(board, color);
     }
     else if(piece == PIECE_P) {
-        bb_t all_pieces = board_all_pieces(board);
-        if(color == COLOR_WHITE) {
-            bb_t black_pieces = board_pieces(board, COLOR_BLACK);
-            // for now just the white pawns
-            // One step above move
-            bb_t step1 = (loc << 8);
-            // For one-square steps from rank 2 (that end up at rank 3) we
-            // compute two-square steps
-            bb_t step2 = (step1 & RANK_3) << 8;
-            bb_t valid_moves = (step1 | step2) & ~all_pieces;
-            // Now compute valid captures
-            bb_t atk_l = (loc & ~FILE_A) << 7;
-            bb_t atk_r = (loc & ~FILE_H) << 9;
-            bb_t valid_attacks = (atk_l | atk_r) & black_pieces;
-            return valid_moves | valid_attacks;
-        }
-        else {
-            bb_t white_pieces = board_pieces(board, COLOR_WHITE);
-            // for now just the white pawns
-            // One step above move
-            bb_t step1 = (loc >> 8);
-            // For one-square steps from rank 2 (that end up at rank 3) we
-            // compute two-square steps
-            bb_t step2 = (step1 & RANK_3);
-            bb_t valid_moves = (step1 | step2) & ~all_pieces;
-            // Now compute valid captures
-            bb_t atk_l = (loc & ~FILE_A) >> 9;
-            bb_t atk_r = (loc & ~FILE_H) >> 7;
-            bb_t valid_attacks = (atk_l | atk_r) & white_pieces;
-            return valid_moves | valid_attacks;
-        }
+        bb_t ally_pieces = board_pieces(board, color);
+        bb_t valid_moves   = board_moves_p  (board, loc, color);
+        bb_t valid_attacks = board_attacks_p(board, loc, color);
+        return valid_moves | (valid_attacks & ~ally_pieces);
     }
     else if(piece == PIECE_R) {
         bb_t ally_pieces = board_pieces(board, color);
-        bb_t enemy_pieces = board_pieces(board, 1-color);
-        bb_t all_pieces = ally_pieces | enemy_pieces;
-        unsigned long loc_sq = bb_first_bit(loc);
-        bb_t all_moves = 0;
-        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_R);
-        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_U);
-        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_L);
-        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_D);
-        bb_t valid_moves = all_moves & ~ally_pieces;
-        return valid_moves;
+        bb_t attacks = board_attacks_r(board, loc);
+        return attacks & ~ally_pieces;
     }
     else if(piece == PIECE_B) {
         bb_t ally_pieces = board_pieces(board, color);
-        bb_t enemy_pieces = board_pieces(board, 1-color);
-        bb_t all_pieces = ally_pieces | enemy_pieces;
-        unsigned long loc_sq = bb_first_bit(loc);
-        bb_t all_moves = 0;
-        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_UL);
-        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_UR);
-        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_DL);
-        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_DR);
-        bb_t valid_moves = all_moves & ~ally_pieces;
-        return valid_moves;
+        bb_t attacks = board_attacks_b(board, loc);
+        return attacks & ~ally_pieces;
     }
     else if(piece == PIECE_Q) {
+        bb_t lateral_atks  = board_attacks_r(board, loc);
+        bb_t diagonal_atks = board_attacks_b(board, loc);
+        bb_t attacks = lateral_atks | diagonal_atks;
         bb_t ally_pieces = board_pieces(board, color);
-        bb_t enemy_pieces = board_pieces(board, 1-color);
-        bb_t all_pieces = ally_pieces | enemy_pieces;
-        unsigned long loc_sq = bb_first_bit(loc);
-        bb_t all_moves = 0;
-        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_R);
-        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_U);
-        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_L);
-        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_D);
-        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_UL);
-        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_UR);
-        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_DL);
-        all_moves |= bb_ray_moves(all_pieces, loc_sq, DIR_DR);
-        bb_t valid_moves = all_moves & ~ally_pieces;
-        return valid_moves;
+        return attacks & ~ally_pieces;
     }
     return 0;
 }
