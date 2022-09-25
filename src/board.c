@@ -136,10 +136,10 @@ static void bb_rays_init() {
         right |= (right << 2) & ~(FILE_A|FILE_B);
         right |= (right << 4) & ~(FILE_A|FILE_B|FILE_C|FILE_D);
         // diagonals
-        bb_t ul = base << 7;
-        bb_t ur = base << 9;
-        bb_t dl = base >> 9;
-        bb_t dr = base >> 7;
+        bb_t ul = (base & ~FILE_A) << 7;
+        bb_t ur = (base & ~FILE_H) << 9;
+        bb_t dl = (base & ~FILE_A) >> 9;
+        bb_t dr = (base & ~FILE_H) >> 7;
         for(int i = 0; i != 7; ++i) {
             ul |= (ul & ~FILE_A) << 7;
             ur |= (ur & ~FILE_H) << 9;
