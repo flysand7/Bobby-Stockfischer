@@ -265,7 +265,7 @@ static bb_t bb_ray_moves(bb_t pieces, int loc_sq, int dir) {
     return attacks ^ ray_attack_lut[block_sq][dir];
 }
 
-static bb_t board_attacks_k(Board *board, bb_t loc) {
+static bb_t board_attacks_k(bb_t loc) {
     // The spots for king go like this:
     //  1 2 3
     //  4 K 5
@@ -288,7 +288,7 @@ static bb_t board_attacks_k(Board *board, bb_t loc) {
     return atks;
 }
 
-static bb_t board_attacks_n(Board *board, bb_t loc) {
+static bb_t board_attacks_n(bb_t loc) {
     // The spots for the knight go like this:
     // . 1 . 2 .
     // 3 . . . 4
@@ -357,57 +357,58 @@ static bb_t board_moves_p(Board *board, bb_t loc, int color) {
     }
 }
 
-static bb_t board_attacks_r(Board *board, bb_t loc) {
-    bb_t all_pieces = board_all_pieces(board);
+static bb_t board_attacks_r(bb_t occupancy, bb_t loc) {
     unsigned long loc_sq = bb_first_bit(loc);
     bb_t moves = 0;
-    moves |= bb_ray_moves(all_pieces, loc_sq, DIR_R);
-    moves |= bb_ray_moves(all_pieces, loc_sq, DIR_U);
-    moves |= bb_ray_moves(all_pieces, loc_sq, DIR_L);
-    moves |= bb_ray_moves(all_pieces, loc_sq, DIR_D);
+    moves |= bb_ray_moves(occupancy, loc_sq, DIR_R);
+    moves |= bb_ray_moves(occupancy, loc_sq, DIR_U);
+    moves |= bb_ray_moves(occupancy, loc_sq, DIR_L);
+    moves |= bb_ray_moves(occupancy, loc_sq, DIR_D);
     return moves;
 }
 
-static bb_t board_attacks_b(Board *board, bb_t loc) {
-    bb_t all_pieces = board_all_pieces(board);
+static bb_t board_attacks_b(bb_t occupancy, bb_t loc) {
     unsigned long loc_sq = bb_first_bit(loc);
     bb_t moves = 0;
-    moves |= bb_ray_moves(all_pieces, loc_sq, DIR_UL);
-    moves |= bb_ray_moves(all_pieces, loc_sq, DIR_UR);
-    moves |= bb_ray_moves(all_pieces, loc_sq, DIR_DL);
-    moves |= bb_ray_moves(all_pieces, loc_sq, DIR_DR);
+    moves |= bb_ray_moves(occupancy, loc_sq, DIR_UL);
+    moves |= bb_ray_moves(occupancy, loc_sq, DIR_UR);
+    moves |= bb_ray_moves(occupancy, loc_sq, DIR_DL);
+    moves |= bb_ray_moves(occupancy, loc_sq, DIR_DR);
     return moves;
 }
 
 static bb_t board_valid_moves(Board *board, bb_t loc, int piece, int color) {
     if(piece == PIECE_K) {
-        bb_t attacks = board_attacks_k(board, loc);
+        bb_t attacks = board_attacks_k(loc);
         bb_t ally_pieces = board_pieces(board, color);
         return attacks & ~ally_pieces;
     }
     else if(piece == PIECE_N) {
-        bb_t attacks = board_attacks_n(board, loc);
+        bb_t attacks = board_attacks_n(loc);
         bb_t ally_pieces = board_pieces(board, color);
     }
     else if(piece == PIECE_P) {
-        bb_t ally_pieces = board_pieces(board, color);
         bb_t valid_moves   = board_moves_p  (board, loc, color);
         bb_t valid_attacks = board_attacks_p(board, loc, color);
+        bb_t ally_pieces = board_pieces(board, color);
         return valid_moves | (valid_attacks & ~ally_pieces);
     }
     else if(piece == PIECE_R) {
+        bb_t occupancy = board_all_pieces(board);
+        bb_t attacks = board_attacks_r(occupancy, loc);
         bb_t ally_pieces = board_pieces(board, color);
-        bb_t attacks = board_attacks_r(board, loc);
         return attacks & ~ally_pieces;
     }
     else if(piece == PIECE_B) {
+        bb_t occupancy = board_all_pieces(board);
+        bb_t attacks = board_attacks_b(occupancy, loc);
         bb_t ally_pieces = board_pieces(board, color);
-        bb_t attacks = board_attacks_b(board, loc);
         return attacks & ~ally_pieces;
     }
     else if(piece == PIECE_Q) {
-        bb_t lateral_atks  = board_attacks_r(board, loc);
-        bb_t diagonal_atks = board_attacks_b(board, loc);
+        bb_t occupancy = board_all_pieces(board);
+        bb_t lateral_atks  = board_attacks_r(occupancy, loc);
+        bb_t diagonal_atks = board_attacks_b(occupancy, loc);
         bb_t attacks = lateral_atks | diagonal_atks;
         bb_t ally_pieces = board_pieces(board, color);
         return attacks & ~ally_pieces;
